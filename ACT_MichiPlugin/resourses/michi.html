@@ -1,0 +1,326 @@
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title></title>
+  <style>
+    /*
+            表示設定 (1)
+        */
+
+    * {
+      /* フォント （一部のフォントは上手く適用されない） */
+      font-family: "Meiryo";
+      font-size: 16px;
+    }
+
+    body,
+    html {
+      margin: 0;
+    }
+
+    html {
+      height: 100%;
+
+      /* 外枠 */
+      /*border: 1px solid rgba(0,0,0,0.1);*/
+      /* はみ出た内容はスクロールバーを表示させずに隠す
+             * 今のところ、ブラウザへの入力はできないので表示させても無意味 */
+      overflow: hidden;
+
+      /* 背景色 */
+      background-color: transparent;
+    }
+
+    #wrapper {
+      background: rgba(0, 0, 0, 0.35);
+      box-shadow: 0 0 8px 8px rgba(0, 0, 0, 0.35);
+      border-radius: 4px;
+      margin: 12px;
+    }
+
+    .resizeHandle {
+      /* リサイズ用のハンドル
+             * リサイズができる場所はウィンドウ右下の16x16ピクセルの場所
+             * この部分が完全に透明だとマウス入力が透過してしまってサイズを変更できなくなる */
+      background-image: url(handle.png);
+      background-position: bottom right;
+      background-repeat: no-repeat;
+      box-sizing: border-box;
+    }
+    /* キャラクターデータのテキストの設定 */
+
+    #labelBody {
+      color: #E2EBF5;
+      text-shadow: -1px 0 3px #217AA2, 0 1px 3px #217AA2, 1px 0 3px #217AA2, 0 -1px 3px #217AA2;
+      font-weight: 300;
+      overflow: hidden;
+    }
+    .rowLimited {
+      color: #E2EBF5;
+      text-shadow: -1px 0 3px #00cb00, 0 1px 3px #00cb00, 1px 0 3px #00cb00, 0 -1px 3px #00cb00;
+      font-weight: 300;
+      overflow: hidden;
+    }
+    .rowLegend {
+      color: #E2EBF5;
+      text-shadow: -1px 0 3px #ff3232, 0 1px 3px #ff3232, 1px 0 3px #ff3232, 0 -1px 3px #ff3232;
+      font-weight: 300;
+      overflow: hidden;
+    }
+    .rowMichi {
+      color: #E2EBF5;
+      text-shadow: -1px 0 3px #217AA2, 0 1px 3px #217AA2, 1px 0 3px #217AA2, 0 -1px 3px #217AA2;
+      font-weight: 300;
+      overflow: hidden;
+    }
+
+  </style>
+  <script>
+    //
+    // プラグインから onOverlayDataUpdate イベントが発行されるので、それを受信する
+    // イベントハンドラの第一引数の detail プロパティ内にプラグインから送信されたデータが入る
+    //
+    // * detail.text       表示するテキストデータ
+    // * detail.isHTML     HTML で表示するか否か
+    //
+
+    //
+    // 以下表示用スクリプト
+    //
+
+    var EORZEA_PER_LOCAL = 1440 / 70;
+
+    // onOverlayStateUpdate イベントを購読
+    document.addEventListener("onOverlayStateUpdate", function(e) {
+      if (!e.detail.isLocked) {
+        displayResizeHandle();
+      } else {
+        hideResizeHandle();
+      }
+    });
+
+    function displayResizeHandle() {
+      document.documentElement.classList.add("resizeHandle");
+    }
+
+    function hideResizeHandle() {
+      document.documentElement.classList.remove("resizeHandle");
+    }
+
+    // onOverlayDataUpdate イベントを購読
+    document.addEventListener("onOverlayDataUpdate", function(e) {
+      reload(e.detail);
+
+    });
+
+    setInterval("update()", 500);
+
+
+    //設定
+    var settings = {
+      sound: "chime.wav",
+      fontSize: 24
+    }
+    var isSound = true;
+    var michiData = null;
+
+    function reload(data) {
+      var elem = document.getElementById("labelBody");
+      //elem.innerHTML = JSON.stringify(data);
+      isSound = data.IsPlaySound;
+      michiData = data.Michi;
+      isHTML = data.isHTML;
+    }
+
+    var sound = new Audio("chime.wav");
+
+
+    function strftime(t) {
+      var time_format = "{0}{1}".format(
+        t.getHours() < 10 ? "0" + t.getHours() : t.getHours(),
+        t.getMinutes() < 10 ? "0" + t.getMinutes() : t.getMinutes()
+      );
+      return time_format;
+    }
+    // 表示要素の更新
+    function update() {
+      var elem = document.getElementById("labelBody");
+
+      var date = new Date();
+      //elem.innerHTML = date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+      var et = new localToEorzea();
+      et.setTime(date.getTime());
+      //elem.innerHTML = et.getHours() + ":" + et.getMinutes();
+      var body = "";
+      var etHours = et.getHours();
+
+      var nowHervests = [];
+      var nextHervests = [];
+      for (var i in michiData) {
+        hervest = michiData[i];
+        etHours = et.getHours();
+        //body += JSON.stringify(hervest);
+        if (hervest.Type == "未知" || hervest.Type == "伝説")　 {
+          etHours = etHours >= 12 ? Number(etHours) - 12 : etHours;
+        }
+        //body = etHours;
+        if (hervest.Start <= etHours && hervest.End > etHours) {
+          var end = hervest.End * 60 * 60;
+          var now = etHours * 60 * 60 + et.getMinutes() * 60 + et.getSeconds();
+          if (hervest.Start == etHours && et.getMinutes() == 0 && isSound) {
+            sound.play();
+          }
+          hervest.remain = (end - now) / EORZEA_PER_LOCAL;
+          nowHervests.push(hervest);
+        } else {
+          var start = hervest.Start == 0 ? 12 * 60 * 60 : hervest.Start * 60 * 60;
+          if (hervest.Type == "刻限") {
+            start = hervest.Start == 0 ? 24 * 60 * 60 : hervest.Start * 60 * 60;
+          }
+          var now = etHours * 60 * 60 + et.getMinutes() * 60 + et.getSeconds();
+          var remain = (start - now) / EORZEA_PER_LOCAL;
+          if (remain > 0 && remain <= 350) {
+            hervest.remain = remain;
+            nextHervests.push(hervest);
+          }
+
+        }
+        //elem.innerHTML = JSON.stringify(nowHervests);
+        //return;
+      }
+
+      var nowBody = "";
+      for (var i in nowHervests) {
+        hervest = nowHervests[i];
+        var rowClass = "";
+        switch (hervest.Type) {
+          case "未知":
+            rowClass = "rowMichi";
+            break;
+          case "伝説":
+            rowClass = "rowLegend";
+            break;
+          case "刻限":
+            rowClass = "rowLimited";
+            break;
+        }
+        nowBody += "<tr class='"+ rowClass +"'><td>" + hervest.Type + "</td><td>"
+                + hervest.Name + "</td><td>"
+                + hervest.Row + "段目</td><td>"
+                + hervest.Map +"("+hervest.PosX +"," + hervest.PosY +")" + "</td><td>"
+                + "あと" + Math.floor(hervest.remain) + "秒</td></tr>\n";
+      }
+      var table = document.getElementById("nowHervests");
+      table.innerHTML = nowBody;
+
+      var nextBody = "";
+      for (var i in nextHervests) {
+        hervest = nextHervests[i];
+        var rowClass = "";
+        switch (hervest.Type) {
+          case "未知":
+            rowClass = "rowMichi";
+            break;
+          case "伝説":
+            rowClass = "rowLegend";
+            break;
+          case "刻限":
+            rowClass = "rowLimited";
+            break;
+        }
+        nextBody += "<tr class='"+ rowClass +"'><td>" + hervest.Type + "</td><td>"
+                + hervest.Name + "</td><td>"
+                + hervest.Row + "段目</td><td>"
+                + hervest.Map +"("+hervest.PosX +"," + hervest.PosY +")" + "</td><td>"
+                + "あと" + Math.floor(hervest.remain) + "秒</td></tr>\n";
+      }
+      var table = document.getElementById("nextHervests");
+      table.innerHTML = nextBody;
+      //elem.innerHTML = "aa" +nowHervests;
+      return;
+
+
+
+      if (body != "") {
+        if (etHours % 2 == 0 && et.getMinutes() == 0 && settings.sound != "" && isHTML) {
+          sound.play();
+        }
+        document.getElementById('wrapper').style.display = "";
+      } else {
+        document.getElementById('wrapper').style.display = "none";
+      }
+      elem.innerText = body;
+    }
+
+
+    function localToEorzea() {
+    //var localToEorzea = function() {
+      var MONTHS_PER_YEAR = 12;
+      var DATES_PER_MONTH = 32;
+      var HOURS_PER_DATE = 24;
+      var MINUTES_PER_HOUR = 60;
+      var SECONDS_PER_MINUTE = 60;
+      var MILLISECONDS_PER_SECONDS = 1000;
+      var EORZEA_PER_LOCAL = 1440 / 70;
+      var EORZEA_MILLISECONDS = 0;
+
+      var MILLISECONDS_PER_MINUTE = MILLISECONDS_PER_SECONDS * SECONDS_PER_MINUTE;
+      var MILLISECONDS_PER_HOUR = MILLISECONDS_PER_MINUTE * MINUTES_PER_HOUR;
+      var MILLISECONDS_PER_DATE = MILLISECONDS_PER_HOUR * HOURS_PER_DATE;
+      var MILLISECONDS_PER_MONTH = MILLISECONDS_PER_DATE * DATES_PER_MONTH;
+      return {
+        setTime: function(time) {
+          var UNIX = time;
+          EORZEA_MILLISECONDS = UNIX * EORZEA_PER_LOCAL;
+        },
+        setEtTime: function(time) {
+          EORZEA_MILLISECONDS = time;
+        },
+        getMonth: function() {
+          return Math.floor(EORZEA_MILLISECONDS / MILLISECONDS_PER_MONTH) % MONTHS_PER_YEAR;
+        },
+        getDate: function() {
+          return Math.floor(EORZEA_MILLISECONDS / MILLISECONDS_PER_DATE) % DATES_PER_MONTH;
+        },
+        getHours: function() {
+          return Math.floor(EORZEA_MILLISECONDS / MILLISECONDS_PER_HOUR) % HOURS_PER_DATE;
+        },
+        getMinutes: function() {
+          return Math.floor(EORZEA_MILLISECONDS / MILLISECONDS_PER_MINUTE) % MINUTES_PER_HOUR;
+        },
+        getSeconds: function() {
+          return Math.floor(EORZEA_MILLISECONDS / MILLISECONDS_PER_SECONDS) % SECONDS_PER_MINUTE;
+        },
+        getMilliseconds: function() {
+          return EORZEA_MILLISECONDS % MILLISECONDS_PER_SECONDS;
+        },
+        getTime: function() {
+          return EORZEA_MILLISECONDS;
+        },
+        getSpeed: function() {
+          return Math.floor(1000 / EORZEA_PER_LOCAL);
+        }
+      };
+
+    };
+  </script>
+</head>
+
+<body>
+  <div id="wrapper">
+    <div id="labelBody">
+      ■現在採集可能
+      <table id="nowHervests">
+      </table>
+      <hr>
+      ■次採集可能
+      <table id="nextHervests">
+      </table>
+      <!-- ここにテキストが入る -->
+    </div>
+  </div>
+
+</body>
+
+</html>
