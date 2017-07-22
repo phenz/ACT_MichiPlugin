@@ -90,7 +90,7 @@ namespace ACT_MichiPlugin
         }
 
         private string CreateEventDispatcherScript()
-            => "var ActXiv = { 'Michi': " + this.CreateJsonData() + ", 'IsPlaySound':'" + (this.Config.IsPlaySound && this.Config.IsVisible).ToString() +"'};\n" +
+            => "var ActXiv = { 'Michi': " + this.CreateJsonData() + ", 'IsPlaySound':" + (this.Config.IsPlaySound && this.Config.IsVisible).ToString().ToLower() +"};\n" +
                "document.dispatchEvent(new CustomEvent('onOverlayDataUpdate', { detail: ActXiv }));";
 
 
